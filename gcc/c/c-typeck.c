@@ -3809,13 +3809,9 @@ pointer_diff (location_t loc, tree op0, tree op1)
       op1 = convert (common_type, op1);
     }
 
-  /* Determine integer type to perform computations in.  This will usually
-     be the same as the result type (ptrdiff_t), but may need to be a wider
-     type if pointers for the address space are wider than ptrdiff_t.  */
-  if (TYPE_PRECISION (restype) < TYPE_PRECISION (TREE_TYPE (op0)))
-    inttype = c_common_type_for_size (TYPE_PRECISION (TREE_TYPE (op0)), 0);
-  else
-    inttype = restype;
+  /* Use unsigned type for the calculation as the signed type might overflow
+   * if the object is spawned over positive/negative boundary. */
+  inttype = c_common_type_for_size (TYPE_PRECISION (TREE_TYPE (op0)), 1);
 
   if (TREE_CODE (target_type) == VOID_TYPE)
     pedwarn (loc, OPT_Wpointer_arith,
@@ -3836,6 +3832,9 @@ pointer_diff (location_t loc, tree op0, tree op1)
   if (!COMPLETE_OR_VOID_TYPE_P (TREE_TYPE (TREE_TYPE (orig_op1))))
     error_at (loc, "arithmetic on pointer to an incomplete type");
 
+  /* Go back to the signed arithmetic. */
+  inttype = c_common_type_for_size (TYPE_PRECISION (TREE_TYPE (op0)), 0);
+
   op1 = c_size_in_bytes (target_type);
 
   if (pointer_to_zero_sized_aggr_p (TREE_TYPE (orig_op1)))
@@ -3843,7 +3842,7 @@ pointer_diff (location_t loc, tree op0, tree op1)
 
   /* Divide by the size, in easiest possible way.  */
   result = fold_build2_loc (loc, EXACT_DIV_EXPR, inttype,
-			    op0, convert (inttype, op1));
+			    convert (inttype, op0), convert (inttype, op1));
 
   /* Convert to final result type if necessary.  */
   return convert (restype, result);
